@@ -3,25 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pong Game</title>
+    <title>Pong</title>
     <link rel="icon" href="data:," />
     <style>
         body {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: start;
             align-items: center;
             height: 100vh;
             margin: 0;
             background-color: #111;
             font-family: Arial, sans-serif;
+            overflow: hidden;
         }
         canvas {
             border: 2px solid #fff;
             background: linear-gradient(to bottom, #1a1a1a, #333);
+            margin-top: 10px;
         }
         #menu {
             position: absolute;
+            top: 30%;
             background: rgba(0, 0, 0, 0.8);
             color: white;
             padding: 20px;
@@ -40,43 +43,74 @@
         #menu button:hover {
             background-color: #45a049;
         }
+        #touchControls button {
+            font-size: 24px;
+            margin: 5px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            background-color: #555;
+            color: white;
+        }
+        #touchControls {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div id="menu">
-        <h1>Pong Mejorado</h1>
+        <h1>Pong</h1>
         <button onclick="startGame()">Iniciar Juego</button>
     </div>
-    <canvas id="pongCanvas" width="800" height="400"></canvas>
+
+    <canvas id="pongCanvas"></canvas>
+
+    <div id="touchControls">
+        <button onclick="player.y -= player.speed * 2">⬆️</button>
+        <button onclick="player.y += player.speed * 2">⬇️</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('pongCanvas');
         const ctx = canvas.getContext('2d');
         const menu = document.getElementById('menu');
         let gameStarted = false;
 
+        function resizeCanvas() {
+            canvas.width = window.innerWidth * 0.9;
+            canvas.height = window.innerHeight * 0.6;
+
+            player.height = canvas.height * 0.25;
+            ai.height = canvas.height * 0.25;
+            paddleHeight = player.height;
+            ball.radius = Math.max(canvas.height, canvas.width) * 0.015;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
         // Objetos del juego
+        let paddleHeight = 100;
+        const paddleWidth = 10;
+
         const ball = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
+            x: 0,
+            y: 0,
             radius: 10,
             speedX: 5,
             speedY: 5,
             baseSpeed: 5
         };
 
-        const paddleHeight = 100;
-        const paddleWidth = 10;
         const player = {
             x: 0,
-            y: canvas.height / 2 - paddleHeight / 2,
+            y: 0,
             width: paddleWidth,
             height: paddleHeight,
             speed: 8
         };
 
         const ai = {
-            x: canvas.width - paddleWidth,
-            y: canvas.height / 2 - paddleHeight / 2,
+            x: 0,
+            y: 0,
             width: paddleWidth,
             height: paddleHeight,
             speed: 4,
@@ -86,15 +120,28 @@
         let playerScore = 0;
         let aiScore = 0;
         let difficulty = 1;
+        const maxScore = 10;
 
-        // Sonidos
         const paddleHitSound = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
         const wallHitSound = new Audio('https://www.soundjay.com/buttons/beep-02.mp3');
 
-        // Controles
         let upPressed = false;
         let downPressed = false;
         let touchY = null;
+
+        const verses = [
+            "Filipenses 4:13 — Todo lo puedo en Cristo que me fortalece.",
+            "Juan 3:16 — Porque de tal manera amó Dios al mundo...",
+            "Salmos 23:1 — Jehová es mi pastor; nada me faltará.",
+            "Proverbios 3:5 — Confía en el Señor con todo tu corazón...",
+            "Isaías 41:10 — No temas, porque yo estoy contigo..."
+        ];
+        let currentVerse = "";
+
+        function showVerse() {
+            const index = Math.floor(Math.random() * verses.length);
+            currentVerse = verses[index];
+        }
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowUp') upPressed = true;
@@ -106,7 +153,6 @@
             if (e.key === 'ArrowDown') downPressed = false;
         });
 
-        // Controles táctiles
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             touchY = e.touches[0].clientY;
@@ -127,20 +173,37 @@
             touchY = null;
         });
 
-        // Iniciar juego
         function startGame() {
+            playerScore = 0;
+            aiScore = 0;
+            difficulty = 1;
+            resetBall();
+            currentVerse = "";
             menu.style.display = 'none';
             gameStarted = true;
             gameLoop();
         }
 
-        // Dibujar elementos
+        function restartGame() {
+            startGame();
+        }
+
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.speedX = ball.baseSpeed * (Math.random() > 0.5 ? 1 : -1) * difficulty;
+            ball.speedY = ball.baseSpeed * (Math.random() > 0.5 ? 1 : -1) * difficulty;
+
+            const totalPoints = playerScore + aiScore;
+            if (totalPoints > 0 && totalPoints % 3 === 0) {
+                showVerse();
+            }
+        }
+
         function draw() {
-            // Limpiar canvas
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Línea central
             ctx.setLineDash([5, 15]);
             ctx.beginPath();
             ctx.moveTo(canvas.width / 2, 0);
@@ -149,67 +212,68 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Dibujar paletas
             ctx.fillStyle = '#00ffcc';
             ctx.fillRect(player.x, player.y, player.width, player.height);
             ctx.fillStyle = '#ff4d4d';
             ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
 
-            // Dibujar pelota
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
             ctx.fillStyle = '#ffff00';
             ctx.fill();
             ctx.closePath();
 
-            // Dibujar puntajes
             ctx.font = '32px Arial';
             ctx.fillStyle = 'white';
             ctx.fillText(playerScore, canvas.width / 4, 50);
             ctx.fillText(aiScore, 3 * canvas.width / 4, 50);
+
+            if (currentVerse) {
+                ctx.font = '18px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.fillText(currentVerse, canvas.width / 2, canvas.height - 20);
+            }
         }
 
-        // Actualizar posiciones
         function update() {
             if (!gameStarted) return;
 
-            // Mover paleta del jugador
-            if (upPressed && player.y > 0) {
-                player.y -= player.speed;
-            }
-            if (downPressed && player.y < canvas.height - player.height) {
-                player.y += player.speed;
-            }
-
-            // Mover paleta de la IA
-            if (ai.y + ai.height / 2 < ball.y) {
-                ai.y += ai.speed;
-            } else if (ai.y + ai.height / 2 > ball.y) {
-                ai.y -= ai.speed;
+            if (playerScore >= maxScore || aiScore >= maxScore) {
+                gameStarted = false;
+                menu.style.display = 'flex';
+                menu.innerHTML = `
+                    <h1>${playerScore >= maxScore ? '¡Ganaste!' : 'Perdiste'}</h1>
+                    <p>${currentVerse}</p>
+                    <button onclick="restartGame()">Jugar de nuevo</button>
+                `;
+                return;
             }
 
-            // Mover pelota
+            if (upPressed && player.y > 0) player.y -= player.speed;
+            if (downPressed && player.y < canvas.height - player.height) player.y += player.speed;
+
+            if (ai.y + ai.height / 2 < ball.y) ai.y += ai.speed;
+            else if (ai.y + ai.height / 2 > ball.y) ai.y -= ai.speed;
+
             ball.x += ball.speedX;
             ball.y += ball.speedY;
 
-            // Colisión con bordes superior e inferior
             if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
                 ball.speedY = -ball.speedY;
                 wallHitSound.play().catch(() => {});
             }
 
-            // Colisión con paletas
             if (
                 (ball.x - ball.radius < player.x + player.width &&
                     ball.y > player.y && ball.y < player.y + player.height) ||
                 (ball.x + ball.radius > ai.x &&
                     ball.y > ai.y && ball.y < ai.y + ai.height)
             ) {
-                ball.speedX = -ball.speedX * 1.05; // Aumentar velocidad
+                ball.speedX = -ball.speedX * 1.05;
                 paddleHitSound.play().catch(() => {});
             }
 
-            // Puntuación
             if (ball.x < 0) {
                 aiScore++;
                 resetBall();
@@ -218,8 +282,7 @@
                 resetBall();
             }
 
-            // Aumentar dificultad
-            if (playerScore + aiScore > 0 && (playerScore + aiScore) % 5 === 0) {
+            if ((playerScore + aiScore) % 5 === 0 && (playerScore + aiScore) > 0) {
                 difficulty += 0.1;
                 ball.speedX *= 1.1;
                 ball.speedY *= 1.1;
@@ -227,20 +290,22 @@
             }
         }
 
-        // Reiniciar pelota
-        function resetBall() {
-            ball.x = canvas.width / 2;
-            ball.y = canvas.height / 2;
-            ball.speedX = ball.baseSpeed * (Math.random() > 0.5 ? 1 : -1) * difficulty;
-            ball.speedY = ball.baseSpeed * (Math.random() > 0.5 ? 1 : -1) * difficulty;
-        }
-
-        // Bucle del juego
         function gameLoop() {
             update();
             draw();
-            requestAnimationFrame(gameLoop);
+            if (gameStarted) requestAnimationFrame(gameLoop);
         }
+
+        function initGame() {
+            player.x = 0;
+            player.y = canvas.height / 2 - player.height / 2;
+            ai.x = canvas.width - paddleWidth;
+            ai.y = canvas.height / 2 - ai.height / 2;
+            resetBall();
+        }
+
+        resizeCanvas();
+        initGame();
     </script>
 </body>
 </html>
