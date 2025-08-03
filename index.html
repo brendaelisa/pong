@@ -2,179 +2,203 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pong</title>
    <link rel="icon" href="data:," />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
   <style>
     body {
       margin: 0;
-      overflow: hidden;
-      background: black;
-      touch-action: none;
+      background: #222;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    #controls {
-      position: fixed;
-      bottom: 10px;
-      width: 100%;
-      text-align: center;
-      z-index: 10;
+    canvas {
+      border: 4px solid white;
+      margin-top: 10px;
     }
-    .btn {
-      background: white;
-      border: none;
-      padding: 20px;
-      margin: 5px;
-      font-size: 24px;
-      border-radius: 10px;
+    button {
+      margin-top: 10px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
+  <h1>Pong: 1 Jugador vs IA</h1>
+  <div id="score"></div>
+  <div id="verse"></div>
+  <div id="timer"></div>
+  <button onclick="resetGame()">Reiniciar</button>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script>
+    let player, ai, ball;
+    let playerScore = 0;
+    let aiScore = 0;
+    let verses = [
+      "Todo lo puedo en Cristo que me fortalece. - Filipenses 4:13",
+      "El Señor es mi pastor; nada me faltará. - Salmo 23:1",
+      "Jehová es mi luz y mi salvación. - Salmo 27:1",
+      "El que habita al abrigo del Altísimo morará bajo la sombra del Omnipotente. - Salmo 91:1",
+      "Confía en el Señor con todo tu corazón. - Proverbios 3:5"
+    ];
+    let timerStart;
+    let timeLimit = 60; // segundos
+    let winner = null;
 
-<div id="controls">
-  <button class="btn" ontouchstart="moveUp()" ontouchend="stopMove()">⬆️</button>
-  <button class="btn" ontouchstart="moveDown()" ontouchend="stopMove()">⬇️</button>
-</div>
+    function setup() {
+      createCanvas(600, 400);
+      player = new Paddle(true);
+      ai = new Paddle(false);
+      ball = new Ball();
+      timerStart = millis();
+    }
 
-<script>
-let playerY, aiY, ballX, ballY, ballSpeedX, ballSpeedY;
-let playerScore = 0;
-let verseIndex = 0;
-let showVerse = false;
-let verseTimer = 0;
-let moving = 0;
+    function draw() {
+      background(0);
+      drawCourt();
 
-let bounceSound, pointSound;
-let soundEnabled = false;
+      if (winner) {
+        textSize(32);
+        textAlign(CENTER, CENTER);
+        fill(255);
+        text(winner, width / 2, height / 2);
+        noLoop();
+        return;
+      }
 
-const verses = [
-  "Todo lo puedo en Cristo que me fortalece. (Filipenses 4:13)",
-  "Jehová es mi pastor; nada me faltará. (Salmo 23:1)",
-  "El Señor es mi luz y mi salvación. (Salmo 27:1)",
-  "Esforzaos y cobrad ánimo. (Deuteronomio 31:6)",
-  "Con Dios haremos proezas. (Salmo 60:12)"
-];
+      let elapsed = int((millis() - timerStart) / 1000);
+      let remaining = max(0, timeLimit - elapsed);
+      document.getElementById("timer").innerText = `Tiempo restante: ${remaining}s`;
+      if (remaining === 0) {
+        winner = playerScore > aiScore ? "🏆 ¡Ganaste!" : "🤖 Perdiste contra la IA.";
+      }
 
-function preload() {
-  bounceSound = loadSound('https://cdn.jsdelivr.net/gh/terkelg/spaceinvaders-sounds/fastinvader1.wav');
-  pointSound = loadSound('https://cdn.jsdelivr.net/gh/terkelg/spaceinvaders-sounds/explosion.wav');
-}
+      player.show();
+      ai.show();
+      ball.update();
+      ball.show();
 
-function setup() {
-  createCanvas(window.innerWidth, window.innerHeight - 110); // Ajustado para controles
-  playerY = height / 2;
-  aiY = height / 2;
-  ballX = width / 2;
-  ballY = height / 2;
-  ballSpeedX = 5;
-  ballSpeedY = 3;
-  textAlign(CENTER, CENTER);
-}
+      player.move();
+      ai.y = constrain(ball.y - ai.h / 2, 0, height - ai.h); // IA sigue la pelota
 
-function draw() {
-  background(0);
+      ball.checkPaddle(player);
+      ball.checkPaddle(ai);
 
-  // Paletas
-  rect(30, playerY, 10, 80); // Jugador
-  rect(width - 40, aiY, 10, 80); // IA
+      updateScore();
+    }
 
-  // Pelota
-  ellipse(ballX, ballY, 20);
+    function updateScore() {
+      document.getElementById("score").innerText = `Jugador: ${playerScore} | IA: ${aiScore}`;
+    }
 
-  // Movimiento jugador
-  playerY += moving * 7;
-  playerY = constrain(playerY, 0, height - 80);
+    function drawCourt() {
+      stroke(255);
+      strokeWeight(2);
+      line(width / 2, 0, width / 2, height);
+    }
 
-  // Movimiento IA
-  aiY += (ballY - aiY - 40) * 0.05;
+    function keyPressed() {
+      if (key === 'ArrowUp') player.dir = -1;
+      if (key === 'ArrowDown') player.dir = 1;
+    }
 
-  // Movimiento pelota
-  ballX += ballSpeedX;
-  ballY += ballSpeedY;
+    function keyReleased() {
+      if (key === 'ArrowUp' || key === 'ArrowDown') player.dir = 0;
+    }
 
-  // Rebote vertical
-  if (ballY <= 0 || ballY >= height) {
-    ballSpeedY *= -1;
-    if (soundEnabled) bounceSound.play();
-  }
+    function touchStarted() {
+      if (touches.length > 0) {
+        if (touches[0].y < height / 2) player.dir = -1;
+        else player.dir = 1;
+      }
+    }
 
-  // Rebote jugador
-  if (ballX < 40 && ballY > playerY && ballY < playerY + 80) {
-    ballSpeedX *= -1;
-    if (soundEnabled) bounceSound.play();
-  }
+    function touchEnded() {
+      player.dir = 0;
+    }
 
-  // Rebote IA
-  if (ballX > width - 50 && ballY > aiY && ballY < aiY + 80) {
-    ballSpeedX *= -1;
-    if (soundEnabled) bounceSound.play();
-  }
+    function resetGame() {
+      playerScore = 0;
+      aiScore = 0;
+      winner = null;
+      timerStart = millis();
+      document.getElementById("verse").innerText = "";
+      loop();
+    }
 
-  // Punto para jugador
-  if (ballX > width) {
-    playerScore++;
-    if (soundEnabled) pointSound.play();
-    checkVerse();
-    resetBall();
-  }
+    class Paddle {
+      constructor(isLeft) {
+        this.w = 10;
+        this.h = 80;
+        this.x = isLeft ? 10 : width - 20;
+        this.y = height / 2 - this.h / 2;
+        this.dir = 0;
+      }
 
-  // Punto para IA
-  if (ballX < 0) {
-    resetBall();
-  }
+      move() {
+        this.y += this.dir * 5;
+        this.y = constrain(this.y, 0, height - this.h);
+      }
 
-  // Puntos y versículo
-  fill(255);
-  textSize(32);
-  text(`Puntos: ${playerScore}`, width / 2, 30);
+      show() {
+        fill(255);
+        rect(this.x, this.y, this.w, this.h);
+      }
+    }
 
-  if (showVerse) {
-    textSize(18);
-    text(verses[verseIndex], width / 2, height - 60);
-    verseTimer--;
-    if (verseTimer <= 0) showVerse = false;
-  }
-}
+    class Ball {
+      constructor() {
+        this.reset();
+      }
 
-function resetBall() {
-  ballX = width / 2;
-  ballY = height / 2;
-  ballSpeedX = -ballSpeedX;
-  ballSpeedY = random(-3, 3);
-}
+      reset() {
+        this.x = width / 2;
+        this.y = height / 2;
+        this.r = 10;
+        this.speed = 5;
+        this.xspeed = random([1, -1]) * this.speed;
+        this.yspeed = random(-this.speed, this.speed);
+      }
 
-function checkVerse() {
-  if (playerScore % 5 === 0) {
-    showVerse = true;
-    verseTimer = 300;
-    verseIndex = (verseIndex + 1) % verses.length;
-  }
-}
+      update() {
+        this.x += this.xspeed;
+        this.y += this.yspeed;
 
-// Eventos teclado
-function keyPressed() {
-  soundEnabled = true;
-  if (keyCode === UP_ARROW) moving = -1;
-  if (keyCode === DOWN_ARROW) moving = 1;
-}
-function keyReleased() {
-  if (keyCode === UP_ARROW || keyCode === DOWN_ARROW) moving = 0;
-}
+        if (this.y < 0 || this.y > height) this.yspeed *= -1;
 
-// Controles táctiles
-function moveUp() {
-  soundEnabled = true;
-  moving = -1;
-}
-function moveDown() {
-  soundEnabled = true;
-  moving = 1;
-}
-function stopMove() {
-  moving = 0;
-}
-</script>
+        if (this.x < 0) {
+          aiScore++;
+          this.reset();
+        } else if (this.x > width) {
+          playerScore++;
+          if (playerScore % 5 === 0) {
+            let v = random(verses);
+            document.getElementById("verse").innerText = v;
+          }
+          this.reset();
+        }
+      }
+
+      checkPaddle(p) {
+        if (
+          this.x - this.r < p.x + p.w &&
+          this.x + this.r > p.x &&
+          this.y > p.y &&
+          this.y < p.y + p.h
+        ) {
+          this.xspeed *= -1;
+        }
+      }
+
+      show() {
+        fill(255);
+        ellipse(this.x, this.y, this.r * 2);
+      }
+    }
+  </script>
 </body>
 </html>
