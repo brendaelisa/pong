@@ -1,311 +1,180 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pong</title>
-    <link rel="icon" href="data:," />
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            justify-content: start;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #111;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-        canvas {
-            border: 2px solid #fff;
-            background: linear-gradient(to bottom, #1a1a1a, #333);
-            margin-top: 10px;
-        }
-        #menu {
-            position: absolute;
-            top: 30%;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        #menu button {
-            padding: 10px 20px;
-            font-size: 18px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            border: none;
-            color: white;
-            border-radius: 5px;
-        }
-        #menu button:hover {
-            background-color: #45a049;
-        }
-        #touchControls button {
-            font-size: 24px;
-            margin: 5px;
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: none;
-            background-color: #555;
-            color: white;
-        }
-        #touchControls {
-            margin-top: 10px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pong</title>
+   <link rel="icon" href="data:," />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      touch-action: none;
+    }
+    #controls {
+      position: fixed;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+    }
+    .btn {
+      background: white;
+      border: none;
+      padding: 20px;
+      margin: 5px;
+      font-size: 24px;
+      border-radius: 10px;
+    }
+  </style>
 </head>
 <body>
-    <div id="menu">
-        <h1>Pong</h1>
-        <button onclick="startGame()">Iniciar Juego</button>
-    </div>
 
-    <canvas id="pongCanvas"></canvas>
+<div id="controls">
+  <button class="btn" ontouchstart="moveUp()" ontouchend="stopMove()">⬆️</button>
+  <button class="btn" ontouchstart="moveDown()" ontouchend="stopMove()">⬇️</button>
+</div>
 
-    <div id="touchControls">
-        <button onclick="player.y -= player.speed * 2">⬆️</button>
-        <button onclick="player.y += player.speed * 2">⬇️</button>
-    </div>
+<script>
+let playerY, aiY, ballX, ballY, ballSpeedX, ballSpeedY;
+let playerScore = 0;
+let verseIndex = 0;
+let showVerse = false;
+let verseTimer = 0;
+let moving = 0;
 
-    <script>
-        const canvas = document.getElementById('pongCanvas');
-        const ctx = canvas.getContext('2d');
-        const menu = document.getElementById('menu');
-        let gameStarted = false;
+let bounceSound, pointSound;
+let soundEnabled = false;
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth * 0.9;
-            canvas.height = window.innerHeight * 0.6;
+const verses = [
+  "Todo lo puedo en Cristo que me fortalece. (Filipenses 4:13)",
+  "Jehová es mi pastor; nada me faltará. (Salmo 23:1)",
+  "El Señor es mi luz y mi salvación. (Salmo 27:1)",
+  "Esforzaos y cobrad ánimo. (Deuteronomio 31:6)",
+  "Con Dios haremos proezas. (Salmo 60:12)"
+];
 
-            player.height = canvas.height * 0.25;
-            ai.height = canvas.height * 0.25;
-            paddleHeight = player.height;
-            ball.radius = Math.max(canvas.height, canvas.width) * 0.015;
-        }
-        window.addEventListener('resize', resizeCanvas);
+function preload() {
+  bounceSound = loadSound('https://cdn.jsdelivr.net/gh/terkelg/spaceinvaders-sounds/fastinvader1.wav');
+  pointSound = loadSound('https://cdn.jsdelivr.net/gh/terkelg/spaceinvaders-sounds/explosion.wav');
+}
 
-        // Objetos del juego
-        let paddleHeight = 100;
-        const paddleWidth = 10;
+function setup() {
+  createCanvas(window.innerWidth, window.innerHeight - 110); // Ajustado para controles
+  playerY = height / 2;
+  aiY = height / 2;
+  ballX = width / 2;
+  ballY = height / 2;
+  ballSpeedX = 5;
+  ballSpeedY = 3;
+  textAlign(CENTER, CENTER);
+}
 
-        const ball = {
-            x: 0,
-            y: 0,
-            radius: 10,
-            speedX: 5,
-            speedY: 5,
-            baseSpeed: 5
-        };
+function draw() {
+  background(0);
 
-        const player = {
-            x: 0,
-            y: 0,
-            width: paddleWidth,
-            height: paddleHeight,
-            speed: 8
-        };
+  // Paletas
+  rect(30, playerY, 10, 80); // Jugador
+  rect(width - 40, aiY, 10, 80); // IA
 
-        const ai = {
-            x: 0,
-            y: 0,
-            width: paddleWidth,
-            height: paddleHeight,
-            speed: 4,
-            baseSpeed: 4
-        };
+  // Pelota
+  ellipse(ballX, ballY, 20);
 
-        let playerScore = 0;
-        let aiScore = 0;
-        let difficulty = 1;
-        const maxScore = 10;
+  // Movimiento jugador
+  playerY += moving * 7;
+  playerY = constrain(playerY, 0, height - 80);
 
-        const paddleHitSound = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
-        const wallHitSound = new Audio('https://www.soundjay.com/buttons/beep-02.mp3');
+  // Movimiento IA
+  aiY += (ballY - aiY - 40) * 0.05;
 
-        let upPressed = false;
-        let downPressed = false;
-        let touchY = null;
+  // Movimiento pelota
+  ballX += ballSpeedX;
+  ballY += ballSpeedY;
 
-        const verses = [
-            "Filipenses 4:13 — Todo lo puedo en Cristo que me fortalece.",
-            "Juan 3:16 — Porque de tal manera amó Dios al mundo...",
-            "Salmos 23:1 — Jehová es mi pastor; nada me faltará.",
-            "Proverbios 3:5 — Confía en el Señor con todo tu corazón...",
-            "Isaías 41:10 — No temas, porque yo estoy contigo..."
-        ];
-        let currentVerse = "";
+  // Rebote vertical
+  if (ballY <= 0 || ballY >= height) {
+    ballSpeedY *= -1;
+    if (soundEnabled) bounceSound.play();
+  }
 
-        function showVerse() {
-            const index = Math.floor(Math.random() * verses.length);
-            currentVerse = verses[index];
-        }
+  // Rebote jugador
+  if (ballX < 40 && ballY > playerY && ballY < playerY + 80) {
+    ballSpeedX *= -1;
+    if (soundEnabled) bounceSound.play();
+  }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp') upPressed = true;
-            if (e.key === 'ArrowDown') downPressed = true;
-        });
+  // Rebote IA
+  if (ballX > width - 50 && ballY > aiY && ballY < aiY + 80) {
+    ballSpeedX *= -1;
+    if (soundEnabled) bounceSound.play();
+  }
 
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowUp') upPressed = false;
-            if (e.key === 'ArrowDown') downPressed = false;
-        });
+  // Punto para jugador
+  if (ballX > width) {
+    playerScore++;
+    if (soundEnabled) pointSound.play();
+    checkVerse();
+    resetBall();
+  }
 
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            touchY = e.touches[0].clientY;
-        });
+  // Punto para IA
+  if (ballX < 0) {
+    resetBall();
+  }
 
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (touchY) {
-                const newY = e.touches[0].clientY;
-                const deltaY = newY - touchY;
-                player.y += deltaY * 0.1;
-                player.y = Math.max(0, Math.min(player.y, canvas.height - player.height));
-                touchY = newY;
-            }
-        });
+  // Puntos y versículo
+  fill(255);
+  textSize(32);
+  text(`Puntos: ${playerScore}`, width / 2, 30);
 
-        canvas.addEventListener('touchend', () => {
-            touchY = null;
-        });
+  if (showVerse) {
+    textSize(18);
+    text(verses[verseIndex], width / 2, height - 60);
+    verseTimer--;
+    if (verseTimer <= 0) showVerse = false;
+  }
+}
 
-        function startGame() {
-            playerScore = 0;
-            aiScore = 0;
-            difficulty = 1;
-            resetBall();
-            currentVerse = "";
-            menu.style.display = 'none';
-            gameStarted = true;
-            gameLoop();
-        }
+function resetBall() {
+  ballX = width / 2;
+  ballY = height / 2;
+  ballSpeedX = -ballSpeedX;
+  ballSpeedY = random(-3, 3);
+}
 
-        function restartGame() {
-            startGame();
-        }
+function checkVerse() {
+  if (playerScore % 5 === 0) {
+    showVerse = true;
+    verseTimer = 300;
+    verseIndex = (verseIndex + 1) % verses.length;
+  }
+}
 
-        function resetBall() {
-            ball.x = canvas.width / 2;
-            ball.y = canvas.height / 2;
-            ball.speedX = ball.baseSpeed * (Math.random() > 0.5 ? 1 : -1) * difficulty;
-            ball.speedY = ball.baseSpeed * (Math.random() > 0.5 ? 1 : -1) * difficulty;
+// Eventos teclado
+function keyPressed() {
+  soundEnabled = true;
+  if (keyCode === UP_ARROW) moving = -1;
+  if (keyCode === DOWN_ARROW) moving = 1;
+}
+function keyReleased() {
+  if (keyCode === UP_ARROW || keyCode === DOWN_ARROW) moving = 0;
+}
 
-            const totalPoints = playerScore + aiScore;
-            if (totalPoints > 0 && totalPoints % 3 === 0) {
-                showVerse();
-            }
-        }
-
-        function draw() {
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.setLineDash([5, 15]);
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.strokeStyle = 'white';
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.fillStyle = '#00ffcc';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            ctx.fillStyle = '#ff4d4d';
-            ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
-
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#ffff00';
-            ctx.fill();
-            ctx.closePath();
-
-            ctx.font = '32px Arial';
-            ctx.fillStyle = 'white';
-            ctx.fillText(playerScore, canvas.width / 4, 50);
-            ctx.fillText(aiScore, 3 * canvas.width / 4, 50);
-
-            if (currentVerse) {
-                ctx.font = '18px Arial';
-                ctx.fillStyle = '#fff';
-                ctx.textAlign = 'center';
-                ctx.fillText(currentVerse, canvas.width / 2, canvas.height - 20);
-            }
-        }
-
-        function update() {
-            if (!gameStarted) return;
-
-            if (playerScore >= maxScore || aiScore >= maxScore) {
-                gameStarted = false;
-                menu.style.display = 'flex';
-                menu.innerHTML = `
-                    <h1>${playerScore >= maxScore ? '¡Ganaste!' : 'Perdiste'}</h1>
-                    <p>${currentVerse}</p>
-                    <button onclick="restartGame()">Jugar de nuevo</button>
-                `;
-                return;
-            }
-
-            if (upPressed && player.y > 0) player.y -= player.speed;
-            if (downPressed && player.y < canvas.height - player.height) player.y += player.speed;
-
-            if (ai.y + ai.height / 2 < ball.y) ai.y += ai.speed;
-            else if (ai.y + ai.height / 2 > ball.y) ai.y -= ai.speed;
-
-            ball.x += ball.speedX;
-            ball.y += ball.speedY;
-
-            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
-                ball.speedY = -ball.speedY;
-                wallHitSound.play().catch(() => {});
-            }
-
-            if (
-                (ball.x - ball.radius < player.x + player.width &&
-                    ball.y > player.y && ball.y < player.y + player.height) ||
-                (ball.x + ball.radius > ai.x &&
-                    ball.y > ai.y && ball.y < ai.y + ai.height)
-            ) {
-                ball.speedX = -ball.speedX * 1.05;
-                paddleHitSound.play().catch(() => {});
-            }
-
-            if (ball.x < 0) {
-                aiScore++;
-                resetBall();
-            } else if (ball.x > canvas.width) {
-                playerScore++;
-                resetBall();
-            }
-
-            if ((playerScore + aiScore) % 5 === 0 && (playerScore + aiScore) > 0) {
-                difficulty += 0.1;
-                ball.speedX *= 1.1;
-                ball.speedY *= 1.1;
-                ai.speed = ai.baseSpeed * difficulty;
-            }
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            if (gameStarted) requestAnimationFrame(gameLoop);
-        }
-
-        function initGame() {
-            player.x = 0;
-            player.y = canvas.height / 2 - player.height / 2;
-            ai.x = canvas.width - paddleWidth;
-            ai.y = canvas.height / 2 - ai.height / 2;
-            resetBall();
-        }
-
-        resizeCanvas();
-        initGame();
-    </script>
+// Controles táctiles
+function moveUp() {
+  soundEnabled = true;
+  moving = -1;
+}
+function moveDown() {
+  soundEnabled = true;
+  moving = 1;
+}
+function stopMove() {
+  moving = 0;
+}
+</script>
 </body>
 </html>
