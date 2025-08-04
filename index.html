@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pong para Dos Jugadores</title>
+    <title>Pong</title>
+    <link rel="icon" href="data:," />
     <style>
         body {
             display: flex;
@@ -135,7 +136,8 @@
             width: paddleWidth,
             height: paddleHeight,
             speed: 8,
-            dy: 0
+            dy: 0,
+            touchId: null // NUEVO: ID para seguimiento táctil
         };
 
         let player2 = {
@@ -144,7 +146,8 @@
             width: paddleWidth,
             height: paddleHeight,
             speed: 8,
-            dy: 0
+            dy: 0,
+            touchId: null // NUEVO: ID para seguimiento táctil
         };
 
         let ball = {
@@ -320,23 +323,53 @@
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') player2.dy = 0;
         }
 
-        // Eventos táctiles (Móvil)
+        // NUEVAS funciones para manejar eventos táctiles
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                
+                if (touchX < canvas.width / 2) {
+                    if (player1.touchId === null) {
+                        player1.touchId = touch.identifier;
+                    }
+                } else {
+                    if (player2.touchId === null) {
+                        player2.touchId = touch.identifier;
+                    }
+                }
+            }
+        }
+        
         function handleTouchMove(e) {
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
-                const touchX = touch.clientX - rect.left;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
                 const touchY = touch.clientY - rect.top;
 
-                if (touchX < canvas.width / 2) {
+                if (touch.identifier === player1.touchId) {
                     player1.y = touchY - player1.height / 2;
-                } else {
+                } else if (touch.identifier === player2.touchId) {
                     player2.y = touchY - player2.height / 2;
                 }
             }
         }
         
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === player1.touchId) {
+                    player1.touchId = null;
+                } else if (touch.identifier === player2.touchId) {
+                    player2.touchId = null;
+                }
+            }
+        }
+
         // Iniciar juego
         function startGame() {
             player1Score = 0;
@@ -349,6 +382,9 @@
             gameInterval = setInterval(gameLoop, 1000 / 60);
             timerInterval = setInterval(updateTimer, 1000);
             showVerse = false;
+            // Asegurarse de que los IDs táctiles estén limpios
+            player1.touchId = null;
+            player2.touchId = null;
         }
 
         // Manejar eventos
@@ -356,7 +392,10 @@
             document.addEventListener('keydown', handleKeyDown);
             document.addEventListener('keyup', handleKeyUp);
         } else {
+            canvas.addEventListener('touchstart', handleTouchStart);
             canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', handleTouchEnd);
+            canvas.addEventListener('touchcancel', handleTouchEnd);
         }
 
         resetBtn.addEventListener('click', startGame);
