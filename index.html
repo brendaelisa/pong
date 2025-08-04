@@ -33,6 +33,7 @@
             background-color: #000;
             border: 2px solid #fff;
             display: block;
+            touch-action: none;
         }
 
         #ui-container {
@@ -136,8 +137,7 @@
             width: paddleWidth,
             height: paddleHeight,
             speed: 8,
-            dy: 0,
-            touchId: null // NUEVO: ID para seguimiento táctil
+            dy: 0
         };
 
         let player2 = {
@@ -146,8 +146,7 @@
             width: paddleWidth,
             height: paddleHeight,
             speed: 8,
-            dy: 0,
-            touchId: null // NUEVO: ID para seguimiento táctil
+            dy: 0
         };
 
         let ball = {
@@ -323,51 +322,25 @@
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') player2.dy = 0;
         }
 
-        // NUEVAS funciones para manejar eventos táctiles
-        function handleTouchStart(e) {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const touchX = touch.clientX - rect.left;
-                
-                if (touchX < canvas.width / 2) {
-                    if (player1.touchId === null) {
-                        player1.touchId = touch.identifier;
-                    }
-                } else {
-                    if (player2.touchId === null) {
-                        player2.touchId = touch.identifier;
-                    }
-                }
-            }
-        }
-        
+        // NUEVA LÓGICA MÁS SENCILLA PARA MANEJAR EVENTOS TÁCTILES
         function handleTouchMove(e) {
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const touchX = touch.clientX - rect.left;
                 const touchY = touch.clientY - rect.top;
 
-                if (touch.identifier === player1.touchId) {
+                if (touchX < canvas.width / 2) {
                     player1.y = touchY - player1.height / 2;
-                } else if (touch.identifier === player2.touchId) {
+                } else {
                     player2.y = touchY - player2.height / 2;
                 }
             }
         }
         
-        function handleTouchEnd(e) {
-            e.preventDefault();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === player1.touchId) {
-                    player1.touchId = null;
-                } else if (touch.identifier === player2.touchId) {
-                    player2.touchId = null;
-                }
-            }
+        function handleTouchEnd() {
+            // No hacemos nada, el movimiento se detiene al levantar el dedo
         }
 
         // Iniciar juego
@@ -382,9 +355,6 @@
             gameInterval = setInterval(gameLoop, 1000 / 60);
             timerInterval = setInterval(updateTimer, 1000);
             showVerse = false;
-            // Asegurarse de que los IDs táctiles estén limpios
-            player1.touchId = null;
-            player2.touchId = null;
         }
 
         // Manejar eventos
@@ -392,10 +362,9 @@
             document.addEventListener('keydown', handleKeyDown);
             document.addEventListener('keyup', handleKeyUp);
         } else {
-            canvas.addEventListener('touchstart', handleTouchStart);
+            // Solamente necesitamos el evento 'touchmove' y 'touchend' para esta lógica
             canvas.addEventListener('touchmove', handleTouchMove);
             canvas.addEventListener('touchend', handleTouchEnd);
-            canvas.addEventListener('touchcancel', handleTouchEnd);
         }
 
         resetBtn.addEventListener('click', startGame);
