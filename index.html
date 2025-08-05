@@ -34,6 +34,7 @@
             border: 2px solid #fff;
             display: block;
             touch-action: none;
+            max-height: 80vh;
         }
 
         #ui-container {
@@ -100,9 +101,6 @@
         const timerElement = document.getElementById('timer');
         const resetBtn = document.getElementById('resetBtn');
 
-        let isMobile = /Mobi|Android/i.test(navigator.userAgent);
-
-        // Variables del juego
         const paddleWidth = 10;
         const paddleHeight = 100;
         let player1Score = 0;
@@ -112,8 +110,7 @@
         let gameInterval;
         let timerInterval;
         let seconds = 0;
-        
-        // Array de versículos
+
         const bibleVerses = [
             "Juan 3:16 - Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree, no se pierda, mas tenga vida eterna.",
             "Filipenses 4:13 - Todo lo puedo en Cristo que me fortalece.",
@@ -124,13 +121,11 @@
         let currentVerse = "";
         let showVerse = false;
 
-        // Variables de color para las paletas
-        const player1Color = '#ff0000'; // Rojo
-        const player2Color = '#0000ff'; // Azul
-        const ballColor = '#fff';      // Blanco
-        const gameAreaColor = '#fff'; // Blanco
+        const player1Color = '#ff0000';
+        const player2Color = '#0000ff';
+        const ballColor = '#fff';
+        const gameAreaColor = '#fff';
 
-        // Objetos del juego
         let player1 = {
             x: 0,
             y: canvas.height / 2 - paddleHeight / 2,
@@ -158,13 +153,11 @@
             dy: ballSpeedY
         };
 
-        // Función para dibujar un rectángulo
         function drawRect(x, y, w, h, color) {
             ctx.fillStyle = color;
             ctx.fillRect(x, y, w, h);
         }
 
-        // Función para dibujar un círculo
         function drawCircle(x, y, r, color) {
             ctx.fillStyle = color;
             ctx.beginPath();
@@ -173,7 +166,6 @@
             ctx.fill();
         }
 
-        // Función para envolver texto
         function wrapText(text, x, y, maxWidth, lineHeight) {
             const words = text.split(' ');
             let line = '';
@@ -192,38 +184,32 @@
             ctx.fillText(line, x, y);
         }
 
-        // Función para actualizar los elementos del juego
         function update() {
-            // Mover paletas
             player1.y += player1.dy;
             player2.y += player2.dy;
 
-            // Evitar que las paletas salgan del canvas
             if (player1.y < 0) player1.y = 0;
             if (player1.y + player1.height > canvas.height) player1.y = canvas.height - player1.height;
             if (player2.y < 0) player2.y = 0;
             if (player2.y + player2.height > canvas.height) player2.y = canvas.height - player2.height;
 
-            // Mover la pelota
             ball.x += ball.dx;
             ball.y += ball.dy;
 
-            // Colisión de la pelota con las paredes
             if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
                 ball.dy = -ball.dy;
             }
 
-            // Colisión de la pelota con las paletas
             if (ball.x - ball.radius < player1.x + player1.width &&
                 ball.y > player1.y && ball.y < player1.y + player1.height) {
                 ball.dx = -ball.dx;
             }
+
             if (ball.x + ball.radius > player2.x &&
                 ball.y > player2.y && ball.y < player2.y + player2.height) {
                 ball.dx = -ball.dx;
             }
 
-            // Puntuación
             if (ball.x < 0) {
                 player2Score++;
                 updateScore();
@@ -237,51 +223,36 @@
             }
         }
 
-        // Función para dibujar todos los elementos
         function render() {
-            // Limpiar canvas
             drawRect(0, 0, canvas.width, canvas.height, '#000');
-
-            // Dibujar paletas y pelota
             drawRect(player1.x, player1.y, player1.width, player1.height, player1Color);
             drawRect(player2.x, player2.y, player2.width, player2.height, player2Color);
             drawCircle(ball.x, ball.y, ball.radius, ballColor);
 
-            // Dibujar línea central
             for (let i = 0; i < canvas.height; i += 20) {
                 drawRect(canvas.width / 2 - 1, i, 2, 10, gameAreaColor);
             }
 
-            // Dibujar el versículo si es necesario
             if (showVerse) {
                 ctx.fillStyle = gameAreaColor;
                 ctx.font = '20px Arial';
                 ctx.textAlign = 'center';
-                
-                const maxWidth = canvas.width - 20;
-                const lineHeight = 25;
-                const x = canvas.width / 2;
-                const y = 30;
-                
-                wrapText(currentVerse, x, y, maxWidth, lineHeight);
+                wrapText(currentVerse, canvas.width / 2, 30, canvas.width - 20, 25);
             }
         }
 
-        // Bucle principal del juego
         function gameLoop() {
             update();
             render();
         }
 
-        // Reiniciar la pelota
         function resetBall() {
             ball.x = canvas.width / 2;
             ball.y = canvas.height / 2;
             ball.dx = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
             ball.dy = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
         }
-        
-        // Verificar la puntuación para mostrar un versículo
+
         function checkScoreAndShowVerse(score) {
             if (score > 0 && score % 3 === 0) {
                 showVerse = true;
@@ -294,12 +265,10 @@
             }
         }
 
-        // Actualizar marcador
         function updateScore() {
             scoreElement.textContent = `Jugador 1: ${player1Score} | Jugador 2: ${player2Score}`;
         }
 
-        // Actualizar temporizador
         function updateTimer() {
             seconds++;
             const minutes = Math.floor(seconds / 60);
@@ -309,7 +278,6 @@
             timerElement.textContent = `Tiempo: ${formattedMinutes}:${formattedSeconds}`;
         }
 
-        // Eventos para teclado (PC)
         function handleKeyDown(e) {
             if (e.key === 'w' || e.key === 'W') player1.dy = -player1.speed;
             if (e.key === 's' || e.key === 'S') player1.dy = player1.speed;
@@ -322,7 +290,6 @@
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') player2.dy = 0;
         }
 
-        // NUEVA LÓGICA MÁS SENCILLA PARA MANEJAR EVENTOS TÁCTILES
         function handleTouchMove(e) {
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
@@ -332,18 +299,19 @@
                 const touchY = touch.clientY - rect.top;
 
                 if (touchX < canvas.width / 2) {
-                    player1.y = touchY - player1.height / 2;
+                    player1.dy = (touchY - (player1.y + player1.height / 2)) * 0.2;
                 } else {
-                    player2.y = touchY - player2.height / 2;
+                    player2.dy = (touchY - (player2.y + player2.height / 2)) * 0.2;
                 }
             }
         }
-        
-        function handleTouchEnd() {
-            // No hacemos nada, el movimiento se detiene al levantar el dedo
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            player1.dy = 0;
+            player2.dy = 0;
         }
 
-        // Iniciar juego
         function startGame() {
             player1Score = 0;
             player2Score = 0;
@@ -357,21 +325,16 @@
             showVerse = false;
         }
 
-        // Manejar eventos
-        if (!isMobile) {
-            document.addEventListener('keydown', handleKeyDown);
-            document.addEventListener('keyup', handleKeyUp);
-        } else {
-            // Solamente necesitamos el evento 'touchmove' y 'touchend' para esta lógica
-            canvas.addEventListener('touchmove', handleTouchMove);
-            canvas.addEventListener('touchend', handleTouchEnd);
-        }
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
+        canvas.addEventListener('touchstart', handleTouchMove);
+        canvas.addEventListener('touchmove', handleTouchMove);
+        canvas.addEventListener('touchend', handleTouchEnd);
+        canvas.addEventListener('touchcancel', handleTouchEnd);
 
         resetBtn.addEventListener('click', startGame);
 
-        // Iniciar el juego al cargar la página
         startGame();
-
     </script>
 </body>
 </html>
